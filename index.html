@@ -9,6 +9,15 @@
 <script src="bootstrap.js"></script>
 
 <style>
+body {
+    margin:0;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:black;
+}
+
+/* animations */
 .fade {
     transition: all 0.2s ease;
 }
@@ -23,12 +32,21 @@
     transform: scale(1);
     opacity: 1;
 }
+
+/* 🔥 prevents text highlighting */
+.noselect {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
 </style>
 
 <script>
 "use strict";
 window.addEventListener("load", function() {
 
+    // ===== GAME INIT =====
     var relayId = Math.floor(Math.random() * 3);
     window.eaglercraftXOpts = {
         demoMode: false,
@@ -98,7 +116,7 @@ window.addEventListener("load", function() {
         }
     }
 
-    // ===== CPS =====
+    // ===== CPS TRACK =====
     document.addEventListener("mousedown",(e)=>{
         if(e.button===0) clicks++;
         if(e.button===0) keys["LMB"]=true;
@@ -116,13 +134,14 @@ window.addEventListener("load", function() {
         if(cpsBox) cpsBox.textContent = "CPS: " + cps;
     },1000);
 
-    // ===== DRAG =====
+    // ===== DRAG SYSTEM =====
     function makeDraggable(el, key){
         let drag=false, ox=0, oy=0;
 
         el.addEventListener("mousedown",(e)=>{
             if(locked) return;
             drag=true;
+            document.body.style.userSelect = "none";
             ox=e.clientX-el.offsetLeft;
             oy=e.clientY-el.offsetTop;
         });
@@ -134,6 +153,7 @@ window.addEventListener("load", function() {
         });
 
         document.addEventListener("mouseup",()=>{
+            document.body.style.userSelect = "auto";
             if(drag){
                 localStorage.setItem(key+"_x", el.style.left);
                 localStorage.setItem(key+"_y", el.style.top);
@@ -158,9 +178,10 @@ window.addEventListener("load", function() {
 
     setTimeout(()=>{
 
-        // WATERMARK + hint
+        // hint text
         const hint = document.createElement("div");
         hint.textContent = "press alt!";
+        hint.classList.add("noselect");
         hint.style.position="fixed";
         hint.style.bottom="35px";
         hint.style.right="15px";
@@ -169,8 +190,10 @@ window.addEventListener("load", function() {
         hint.style.zIndex="9999";
         document.body.appendChild(hint);
 
+        // watermark
         const wm = document.createElement("div");
         wm.textContent = "femclient";
+        wm.classList.add("noselect");
         wm.style.position="fixed";
         wm.style.bottom="10px";
         wm.style.right="15px";
@@ -178,9 +201,9 @@ window.addEventListener("load", function() {
         wm.style.zIndex="9999";
         document.body.appendChild(wm);
 
-        // MENU
+        // ===== MENU =====
         menu = document.createElement("div");
-        menu.className="menu fade";
+        menu.className="menu fade noselect";
         menu.style.position="fixed";
         menu.style.background="rgba(20,20,20,0.85)";
         menu.style.color="white";
@@ -190,6 +213,7 @@ window.addEventListener("load", function() {
         menu.style.fontFamily="Arial";
 
         loadPos(menu,"menu","50px","50px");
+        makeDraggable(menu,"menu");
 
         menu.innerHTML=`
         <b>Femclient</b><br><br>
@@ -202,8 +226,8 @@ window.addEventListener("load", function() {
         `;
 
         document.body.appendChild(menu);
-        makeDraggable(menu,"menu");
 
+        // ===== BUTTONS =====
         document.getElementById("ac").onclick=(e)=>{
             autoClick=!autoClick;
             e.target.textContent=autoClick?"ON":"OFF";
@@ -243,8 +267,9 @@ window.addEventListener("load", function() {
             updateLock();
         };
 
-        // CPS BOX
+        // ===== CPS BOX =====
         cpsBox=document.createElement("div");
+        cpsBox.classList.add("noselect");
         cpsBox.style.position="fixed";
         cpsBox.style.background="rgba(0,0,0,0.5)";
         cpsBox.style.padding="6px";
@@ -256,8 +281,9 @@ window.addEventListener("load", function() {
         document.body.appendChild(cpsBox);
         makeDraggable(cpsBox,"cps");
 
-        // KEYS BOX
+        // ===== KEYS BOX =====
         keysBox=document.createElement("div");
+        keysBox.classList.add("noselect");
         keysBox.style.position="fixed";
         keysBox.style.background="rgba(0,0,0,0.5)";
         keysBox.style.padding="6px";
@@ -311,5 +337,5 @@ window.addEventListener("load", function() {
 </script>
 </head>
 
-<body id="game_frame" style="margin:0;width:100%;height:100%;overflow:hidden;background:black;"></body>
+<body id="game_frame"></body>
 </html>
