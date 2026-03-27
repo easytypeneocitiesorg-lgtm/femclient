@@ -62,6 +62,10 @@ window.addEventListener("load", function() {
     let interval = null;
     let holding = false;
 
+    let turbo = false;
+    let turboKey = "KeyB";
+    let turboRunning = false;
+
     let clicks = 0;
     let cps = 0;
 
@@ -80,6 +84,20 @@ window.addEventListener("load", function() {
         c.dispatchEvent(new MouseEvent("mousedown",{button:0,bubbles:true}));
         c.dispatchEvent(new MouseEvent("mouseup",{button:0,bubbles:true}));
         clicks++;
+    }
+
+    function turboLoop(){
+        if(!turbo){
+            turboRunning = false;
+            return;
+        }
+        turboRunning = true;
+
+        for(let i = 0; i < 3; i++){
+            spamClick();
+        }
+
+        requestAnimationFrame(turboLoop);
     }
 
     function start(){
@@ -211,6 +229,10 @@ window.addEventListener("load", function() {
         Mode: <button id="mode">SPAM</button><br>
         Speed(ms): <input id="spd" type="number" min="1" step="1" style="width:60px"><br>
         Keybind: <select id="acKey">${keyOptions()}</select><br><br>
+
+        Turbo Click: <button id="turbo">OFF</button><br>
+        Keybind: <select id="turboKey">${keyOptions()}</select><br><br>
+
         CPS Display: <button id="cpsT">OFF</button><br>
         Keys Display: <button id="keysT">OFF</button><br>
         Lock UI: <button id="lock">OFF</button>
@@ -248,6 +270,18 @@ window.addEventListener("load", function() {
 
         document.getElementById("acKey").onchange=(e)=>{
             acKey=e.target.value;
+        };
+
+        document.getElementById("turbo").onclick=(e)=>{
+            turbo=!turbo;
+            e.target.textContent=turbo?"ON":"OFF";
+            if(turbo && !turboRunning){
+                turboLoop();
+            }
+        };
+
+        document.getElementById("turboKey").onchange=(e)=>{
+            turboKey=e.target.value;
         };
 
         document.getElementById("cpsT").onclick=(e)=>{
@@ -301,6 +335,13 @@ window.addEventListener("load", function() {
         if(e.code===acKey){
             autoClick=!autoClick;
             autoClick?start():stop();
+        }
+
+        if(e.code===turboKey){
+            turbo=!turbo;
+            if(turbo && !turboRunning){
+                turboLoop();
+            }
         }
     });
 
