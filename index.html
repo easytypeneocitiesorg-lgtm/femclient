@@ -30,7 +30,7 @@ window.addEventListener("load", function() {
 
     main();
 
-    // ===== Watermark =====
+    // ===== Persistent Watermark =====
     (function(){
         const id = "femclientWM";
         function create(){
@@ -53,42 +53,51 @@ window.addEventListener("load", function() {
         new MutationObserver(create).observe(document.body,{childList:true,subtree:true});
     })();
 
-    // ===== Auto Clicker =====
+    // ===== FIXED Auto Clicker =====
     (function(){
         let enabled = false;
         let interval = null;
         let delay = 100;
 
-        // UI
-        const panel = document.createElement("div");
-        panel.style.position = "fixed";
-        panel.style.top = "10px";
-        panel.style.left = "10px";
-        panel.style.color = "white";
-        panel.style.fontFamily = "Arial";
-        panel.style.fontSize = "16px";
-        panel.style.zIndex = "9999";
-        panel.style.display = "none";
+        // Create UI safely (after bootstrap nukes DOM)
+        function ensureUI(){
+            if(document.getElementById("ac_panel")) return;
 
-        const label = document.createElement("div");
-        const input = document.createElement("input");
+            const panel = document.createElement("div");
+            panel.id = "ac_panel";
+            panel.style.position = "fixed";
+            panel.style.top = "10px";
+            panel.style.left = "10px";
+            panel.style.color = "white";
+            panel.style.fontFamily = "Arial";
+            panel.style.fontSize = "16px";
+            panel.style.zIndex = "9999";
+            panel.style.display = "none";
+            panel.style.background = "rgba(0,0,0,0.5)";
+            panel.style.padding = "6px";
+            panel.style.borderRadius = "6px";
 
-        input.type = "number";
-        input.value = delay;
-        input.style.marginTop = "5px";
-        input.style.width = "60px";
+            const label = document.createElement("div");
+            label.id = "ac_label";
 
-        input.onchange = () => {
-            delay = Math.max(1, parseInt(input.value) || 100);
-            if(enabled){
-                clearInterval(interval);
-                start();
-            }
-        };
+            const input = document.createElement("input");
+            input.type = "number";
+            input.value = delay;
+            input.style.marginTop = "5px";
+            input.style.width = "60px";
 
-        panel.appendChild(label);
-        panel.appendChild(input);
-        document.body.appendChild(panel);
+            input.onchange = () => {
+                delay = Math.max(1, parseInt(input.value) || 100);
+                if(enabled){
+                    stop();
+                    start();
+                }
+            };
+
+            panel.appendChild(label);
+            panel.appendChild(input);
+            document.body.appendChild(panel);
+        }
 
         function getCanvas(){
             return document.querySelector("canvas");
@@ -98,19 +107,27 @@ window.addEventListener("load", function() {
             const canvas = getCanvas();
             if(!canvas) return;
 
-            canvas.dispatchEvent(new MouseEvent("mousedown", {button:0,bubbles:true}));
-            canvas.dispatchEvent(new MouseEvent("mouseup", {button:0,bubbles:true}));
+            canvas.dispatchEvent(new MouseEvent("mousedown",{button:0,bubbles:true}));
+            canvas.dispatchEvent(new MouseEvent("mouseup",{button:0,bubbles:true}));
         }
 
         function start(){
+            if(interval) return; // prevent stacking
             interval = setInterval(click, delay);
         }
 
         function stop(){
-            clearInterval(interval);
+            if(interval){
+                clearInterval(interval);
+                interval = null;
+            }
         }
 
         function updateUI(){
+            ensureUI();
+            const panel = document.getElementById("ac_panel");
+            const label = document.getElementById("ac_label");
+
             if(enabled){
                 label.textContent = "AutoClicker: ON (" + delay + "ms)";
                 panel.style.display = "block";
@@ -119,11 +136,18 @@ window.addEventListener("load", function() {
             }
         }
 
+        // Keep UI alive even if DOM resets
+        new MutationObserver(() => {
+            if(enabled) updateUI();
+        }).observe(document.body, {childList:true,subtree:true});
+
         document.addEventListener("keydown", (e)=>{
             if(e.code === "AltLeft" || e.code === "AltRight"){
                 enabled = !enabled;
+
                 if(enabled) start();
                 else stop();
+
                 updateUI();
             }
         });
