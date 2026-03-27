@@ -5,11 +5,10 @@
 <title>femclient MC 1.12</title>
 
 <link rel="shortcut icon" href="https://copilot.microsoft.com/th/id/BCO.09157aa1-3f24-45e7-a7ad-e815b68a510e.png" />
-
 <script src="bootstrap.js"></script>
 
 <style>
-body { margin:0; width:100%; height:100%; overflow:hidden; background:black; }
+body { margin:0; overflow:hidden; background:black; }
 
 .menu {
     backdrop-filter: blur(6px);
@@ -21,9 +20,26 @@ body { margin:0; width:100%; height:100%; overflow:hidden; background:black; }
 }
 .menu.show { transform: scale(1); opacity: 1; }
 
-.noselect {
-    -webkit-user-select:none;
-    user-select:none;
+.noselect { user-select:none; -webkit-user-select:none; }
+.box {
+    background: rgba(0,0,0,0.5);
+    padding:6px;
+    border-radius:6px;
+    color:white;
+    position:fixed;
+}
+.key {
+    display:inline-block;
+    width:32px;height:32px;
+    line-height:32px;
+    text-align:center;
+    margin:2px;
+    border-radius:6px;
+    background:rgba(255,255,255,0.2);
+}
+.key.active {
+    background:white;
+    color:black;
 }
 </style>
 
@@ -31,7 +47,7 @@ body { margin:0; width:100%; height:100%; overflow:hidden; background:black; }
 "use strict";
 window.addEventListener("load", function() {
 
-    // ✅ ORIGINAL WORKING CONFIG (UNCHANGED)
+    // ===== ORIGINAL CONFIG (UNCHANGED) =====
     var relayId = Math.floor(Math.random() * 3);
     window.eaglercraftXOpts = {
         demoMode: false,
@@ -48,52 +64,71 @@ window.addEventListener("load", function() {
 
     main();
 
-    // ===== SAFE DELAY (wait for game to load) =====
-    setTimeout(() => {
+    setTimeout(()=>{
 
         // ===== STATE =====
-        let autoClick = false;
-        let perfectTiming = false;
-        let delay = 100;
-        let mode = "sword";
+        let autoClick=false;
+        let holdMode=false;
+        let perfect=false;
+        let mode="sword";
 
-        let interval = null;
+        let delay=100;
+        let interval=null;
+        let holding=false;
 
-        let keybindAC = "KeyV";
-        let keybindPT = "KeyB";
-        let waitingKey = null;
+        let cps=0, clicks=0;
+        let keys={};
+        let locked=false;
 
-        let keys = {};
+        let keybindAC="KeyV";
+        let keybindPT="KeyB";
 
-        function getCanvas(){
-            return document.querySelector("canvas");
-        }
+        function canvas(){ return document.querySelector("canvas"); }
 
         function click(){
-            const c = getCanvas();
-            if(!c) return;
+            const c=canvas(); if(!c) return;
             c.dispatchEvent(new MouseEvent("mousedown",{button:0,bubbles:true}));
             c.dispatchEvent(new MouseEvent("mouseup",{button:0,bubbles:true}));
+            clicks++;
         }
 
         function getDelay(){
-            if(!perfectTiming) return delay;
-
-            if(mode === "sword") return 630;
-            if(mode === "axe") return 1205;
+            if(perfect){
+                if(mode==="sword") return 630;
+                if(mode==="axe") return 1205;
+            }
+            return delay;
         }
 
         function start(){
             if(interval) clearInterval(interval);
 
-            interval = setInterval(()=>{
+            if(holdMode){
+                const c=canvas();
+                if(c && !holding){
+                    c.dispatchEvent(new MouseEvent("mousedown",{button:0,bubbles:true}));
+                    holding=true;
+                }
+                return;
+            }
+
+            interval=setInterval(()=>{
                 if(autoClick) click();
-                if(perfectTiming && keys["LMB"]) click();
+                if(perfect && keys["LMB"]) click();
             }, getDelay());
         }
 
-        // ===== UI =====
-        const menu = document.createElement("div");
+        function stop(){
+            if(interval){ clearInterval(interval); interval=null; }
+            if(holding){
+                const c=canvas();
+                if(c) c.dispatchEvent(new MouseEvent("mouseup",{button:0,bubbles:true}));
+                holding=false;
+            }
+        }
+
+        // ===== MENU =====
+        const menu=document.createElement("div");
         menu.className="menu noselect";
         menu.style.position="fixed";
         menu.style.top="50px";
@@ -103,11 +138,17 @@ window.addEventListener("load", function() {
         menu.style.padding="12px";
         menu.style.display="none";
 
-        menu.innerHTML = `
+        function keyOptions(){
+            let keys="ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890".split("");
+            return keys.map(k=>`<option value="Key${k}">${k}</option>`).join("");
+        }
+
+        menu.innerHTML=`
         <b>Femclient</b><br><br>
 
-        AutoClicker: <button id="ac">OFF</button><br>
-        Perfect Timing: <button id="pt">OFF</button><br><br>
+        AutoClicker <button id="ac">OFF</button><br>
+        Hold Mode <button id="hold">OFF</button><br>
+        Perfect Timing <button id="pt">OFF</button><br><br>
 
         Mode:
         <select id="mode">
@@ -115,16 +156,23 @@ window.addEventListener("load", function() {
             <option value="axe">Axe</option>
         </select><br><br>
 
-        Speed(ms): <input id="spd" type="text" value="100" style="width:60px"><br><br>
+        Speed(ms): <input id="spd" type="text" placeholder="" style="width:60px"><br><br>
 
-        AutoClicker Key: <button id="setAC">SET (V)</button><br>
-        Timing Key: <button id="setPT">SET (B)</button>
+        AC Key:
+        <select id="acKey">${keyOptions()}</select><br>
+
+        PT Key:
+        <select id="ptKey">${keyOptions()}</select><br><br>
+
+        CPS <button id="cpsT">OFF</button><br>
+        Keys <button id="keysT">OFF</button><br>
+        Lock UI <button id="lock">OFF</button>
         `;
 
         document.body.appendChild(menu);
 
-        // watermark
-        const wm = document.createElement("div");
+        // ===== WATERMARK =====
+        const wm=document.createElement("div");
         wm.textContent="femclient";
         wm.className="noselect";
         wm.style.position="fixed";
@@ -133,102 +181,123 @@ window.addEventListener("load", function() {
         wm.style.color="white";
         document.body.appendChild(wm);
 
-        const hint = document.createElement("div");
-        hint.textContent="press Z";
-        hint.className="noselect";
-        hint.style.position="fixed";
-        hint.style.bottom="35px";
-        hint.style.right="15px";
-        hint.style.color="white";
-        hint.style.opacity="0.7";
-        document.body.appendChild(hint);
+        // ===== CPS =====
+        const cpsBox=document.createElement("div");
+        cpsBox.className="box noselect";
+        cpsBox.style.left="10px";
+        cpsBox.style.top="10px";
+        cpsBox.style.display="none";
+        document.body.appendChild(cpsBox);
+
+        setInterval(()=>{
+            cpsBox.textContent="CPS: "+cps;
+            cps=clicks; clicks=0;
+        },1000);
+
+        // ===== KEYS =====
+        const keysBox=document.createElement("div");
+        keysBox.className="box noselect";
+        keysBox.style.left="10px";
+        keysBox.style.top="80px";
+        keysBox.style.display="none";
+        document.body.appendChild(keysBox);
+
+        function k(n,a){ return `<span class="key ${a?"active":""}">${n}</span>`; }
+
+        setInterval(()=>{
+            keysBox.innerHTML=`
+            <div>${k("W",keys["KeyW"])}</div>
+            <div>${k("A",keys["KeyA"])}${k("S",keys["KeyS"])}${k("D",keys["KeyD"])}</div>
+            <div>${k("LMB",keys["LMB"])}${k("RMB",keys["RMB"])}</div>
+            `;
+        },50);
 
         // ===== BUTTONS =====
-        document.getElementById("ac").onclick=(e)=>{
+        document.getElementById("ac").onclick=e=>{
             autoClick=!autoClick;
             e.target.textContent=autoClick?"ON":"OFF";
+            autoClick?start():stop();
+        };
+
+        document.getElementById("hold").onclick=e=>{
+            holdMode=!holdMode;
+            e.target.textContent=holdMode?"ON":"OFF";
+            stop(); start();
+        };
+
+        document.getElementById("pt").onclick=e=>{
+            perfect=!perfect;
+            e.target.textContent=perfect?"ON":"OFF";
             start();
         };
 
-        document.getElementById("pt").onclick=(e)=>{
-            perfectTiming=!perfectTiming;
-            e.target.textContent=perfectTiming?"ON":"OFF";
-            start();
-        };
-
-        document.getElementById("mode").onchange=(e)=>{
+        document.getElementById("mode").onchange=e=>{
             mode=e.target.value;
             start();
         };
 
         const spd=document.getElementById("spd");
 
-        spd.addEventListener("input",(e)=>{
-            let val=parseInt(e.target.value.replace(/[^0-9]/g,""));
-            if(isNaN(val)||val<1){
-                delay=100;
-            } else delay=val;
+        spd.addEventListener("input",e=>{
+            let v=parseInt(e.target.value.replace(/[^0-9]/g,""));
+            if(isNaN(v)||v<1) delay=100;
+            else delay=v;
             start();
         });
 
-        spd.addEventListener("blur",(e)=>{
-            let val=parseInt(e.target.value);
-            if(isNaN(val)||val<1){
-                e.target.value=100;
-                delay=100;
-            } else e.target.value=val;
-        });
+        document.getElementById("acKey").onchange=e=> keybindAC=e.target.value;
+        document.getElementById("ptKey").onchange=e=> keybindPT=e.target.value;
 
-        document.getElementById("setAC").onclick=()=>{
-            waitingKey="ac";
+        document.getElementById("cpsT").onclick=e=>{
+            cpsBox.style.display=cpsBox.style.display==="none"?"block":"none";
+            e.target.textContent=cpsBox.style.display==="none"?"OFF":"ON";
         };
 
-        document.getElementById("setPT").onclick=()=>{
-            waitingKey="pt";
+        document.getElementById("keysT").onclick=e=>{
+            keysBox.style.display=keysBox.style.display==="none"?"block":"none";
+            e.target.textContent=keysBox.style.display==="none"?"OFF":"ON";
+        };
+
+        document.getElementById("lock").onclick=e=>{
+            locked=!locked;
+            const pe=locked?"none":"auto";
+            cpsBox.style.pointerEvents=pe;
+            keysBox.style.pointerEvents=pe;
+            e.target.textContent=locked?"ON":"OFF";
         };
 
         // ===== INPUT =====
-        document.addEventListener("keydown",(e)=>{
-
-            if(waitingKey){
-                if(waitingKey==="ac") keybindAC=e.code;
-                if(waitingKey==="pt") keybindPT=e.code;
-                waitingKey=null;
-                return;
-            }
+        document.addEventListener("keydown",e=>{
+            keys[e.code]=true;
 
             if(e.code==="KeyZ"){
-                const show = menu.style.display==="none";
-                menu.style.display = show?"block":"none";
+                const show=menu.style.display==="none";
+                menu.style.display=show?"block":"none";
                 setTimeout(()=>menu.classList.toggle("show",show),10);
             }
 
             if(e.code===keybindAC){
                 autoClick=!autoClick;
-                start();
+                autoClick?start():stop();
             }
 
             if(e.code===keybindPT){
-                perfectTiming=!perfectTiming;
+                perfect=!perfect;
                 start();
             }
-
-            keys[e.code]=true;
         });
 
-        document.addEventListener("keyup",(e)=>{
-            keys[e.code]=false;
-        });
-
-        document.addEventListener("mousedown",(e)=>{
+        document.addEventListener("keyup",e=>keys[e.code]=false);
+        document.addEventListener("mousedown",e=>{
             if(e.button===0) keys["LMB"]=true;
+            if(e.button===2) keys["RMB"]=true;
         });
-
-        document.addEventListener("mouseup",(e)=>{
+        document.addEventListener("mouseup",e=>{
             if(e.button===0) keys["LMB"]=false;
+            if(e.button===2) keys["RMB"]=false;
         });
 
-    }, 1500);
+    },1500);
 
 });
 </script>
