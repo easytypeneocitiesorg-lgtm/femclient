@@ -1,99 +1,137 @@
 <!DOCTYPE html>
 <html style="width:100%;height:100%;background-color:black;">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" />
-    
-    <title>femclient MC 1.12</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <meta name="description" content="Play minecraft 1.12 in your browser" />
-    <meta name="keywords" content="eaglercraft, minecraft, 1.12, 1.12.2" />
+<title>femclient MC 1.12</title>
 
-    <meta property="og:title" content="femclient MC 1.12" />
-    <meta property="og:description" content="Custom Eaglercraft Client" />
-    <meta property="og:image" content="https://copilot.microsoft.com/th/id/BCO.09157aa1-3f24-45e7-a7ad-e815b68a510e.png" />
+<link rel="shortcut icon" href="https://copilot.microsoft.com/th/id/BCO.09157aa1-3f24-45e7-a7ad-e815b68a510e.png" />
 
-    <link rel="shortcut icon" href="https://copilot.microsoft.com/th/id/BCO.09157aa1-3f24-45e7-a7ad-e815b68a510e.png" type="image/png" />
+<script src="bootstrap.js"></script>
 
-    <script type="text/javascript" src="bootstrap.js"></script>
+<script>
+"use strict";
+window.addEventListener("load", function() {
 
-    <script>
-    "use strict";
-    window.addEventListener("load", function() {
-        if(window.location.href.indexOf("file:") === 0) {
-            alert("HTTP please, do not open this file locally");
-        } else {
-            var relayId = Math.floor(Math.random() * 3);
-            window.eaglercraftXOpts = {
-                demoMode: false,
-                container: "game_frame",
-                assetsURI: "assets.epw",
-                worldsDB: "worlds",
-                servers: [],
-                relays: [
-                    { addr: "wss://relay.deev.is/", primary: relayId == 0 },
-                    { addr: "wss://relay.lax1dude.net/", primary: relayId == 1 },
-                    { addr: "wss://relay.shhnowisnottheti.me/", primary: relayId == 2 }
-                ]
-            };
+    var relayId = Math.floor(Math.random() * 3);
+    window.eaglercraftXOpts = {
+        demoMode: false,
+        container: "game_frame",
+        assetsURI: "assets.epw",
+        worldsDB: "worlds",
+        servers: [],
+        relays: [
+            { addr: "wss://relay.deev.is/", primary: relayId == 0 },
+            { addr: "wss://relay.lax1dude.net/", primary: relayId == 1 },
+            { addr: "wss://relay.shhnowisnottheti.me/", primary: relayId == 2 }
+        ]
+    };
 
-            main();
+    main();
 
-            // ===== Persistent Watermark =====
-            (function(){
-                const id = "femclientWM";
-                function create(){
-                    if(document.getElementById(id)) return;
-                    const wm = document.createElement("div");
-                    wm.id = id;
-                    wm.textContent = "femclient";
-                    wm.style.position = "fixed";
-                    wm.style.bottom = "10px";
-                    wm.style.right = "15px";
-                    wm.style.color = "rgba(255,255,255,0.8)";
-                    wm.style.fontSize = "24px";
-                    wm.style.fontWeight = "bold";
-                    wm.style.pointerEvents = "none";
-                    wm.style.zIndex = "9999";
-                    wm.style.textShadow = "0 0 8px white";
-                    document.body.appendChild(wm);
-                }
-                create();
-                new MutationObserver(create).observe(document.body,{childList:true,subtree:true});
-            })();
-
-            // ===== Right Shift Hold Left Click =====
-            (function(){
-                let holding = false;
-                let interval = null;
-
-                document.addEventListener("keydown", (e) => {
-                    if (e.code === "ShiftRight") {
-                        holding = !holding;
-                        console.log("Auto click hold:", holding);
-
-                        if (holding) {
-                            interval = setInterval(() => {
-                                document.dispatchEvent(new MouseEvent("mousedown", {
-                                    button: 0,
-                                    bubbles: true
-                                }));
-                            }, 50); // speed (lower = faster)
-                        } else {
-                            clearInterval(interval);
-                            document.dispatchEvent(new MouseEvent("mouseup", {
-                                button: 0,
-                                bubbles: true
-                            }));
-                        }
-                    }
-                });
-            })();
-
+    // ===== Watermark =====
+    (function(){
+        const id = "femclientWM";
+        function create(){
+            if(document.getElementById(id)) return;
+            const wm = document.createElement("div");
+            wm.id = id;
+            wm.textContent = "femclient";
+            wm.style.position = "fixed";
+            wm.style.bottom = "10px";
+            wm.style.right = "15px";
+            wm.style.color = "rgba(255,255,255,0.8)";
+            wm.style.fontSize = "24px";
+            wm.style.fontWeight = "bold";
+            wm.style.pointerEvents = "none";
+            wm.style.zIndex = "9999";
+            wm.style.textShadow = "0 0 8px white";
+            document.body.appendChild(wm);
         }
-    });
-    </script>
+        create();
+        new MutationObserver(create).observe(document.body,{childList:true,subtree:true});
+    })();
 
+    // ===== Auto Clicker =====
+    (function(){
+        let enabled = false;
+        let interval = null;
+        let delay = 100;
+
+        // UI
+        const panel = document.createElement("div");
+        panel.style.position = "fixed";
+        panel.style.top = "10px";
+        panel.style.left = "10px";
+        panel.style.color = "white";
+        panel.style.fontFamily = "Arial";
+        panel.style.fontSize = "16px";
+        panel.style.zIndex = "9999";
+        panel.style.display = "none";
+
+        const label = document.createElement("div");
+        const input = document.createElement("input");
+
+        input.type = "number";
+        input.value = delay;
+        input.style.marginTop = "5px";
+        input.style.width = "60px";
+
+        input.onchange = () => {
+            delay = Math.max(1, parseInt(input.value) || 100);
+            if(enabled){
+                clearInterval(interval);
+                start();
+            }
+        };
+
+        panel.appendChild(label);
+        panel.appendChild(input);
+        document.body.appendChild(panel);
+
+        function getCanvas(){
+            return document.querySelector("canvas");
+        }
+
+        function click(){
+            const canvas = getCanvas();
+            if(!canvas) return;
+
+            canvas.dispatchEvent(new MouseEvent("mousedown", {button:0,bubbles:true}));
+            canvas.dispatchEvent(new MouseEvent("mouseup", {button:0,bubbles:true}));
+        }
+
+        function start(){
+            interval = setInterval(click, delay);
+        }
+
+        function stop(){
+            clearInterval(interval);
+        }
+
+        function updateUI(){
+            if(enabled){
+                label.textContent = "AutoClicker: ON (" + delay + "ms)";
+                panel.style.display = "block";
+            } else {
+                panel.style.display = "none";
+            }
+        }
+
+        document.addEventListener("keydown", (e)=>{
+            if(e.code === "AltLeft" || e.code === "AltRight"){
+                enabled = !enabled;
+                if(enabled) start();
+                else stop();
+                updateUI();
+            }
+        });
+
+    })();
+
+});
+</script>
 </head>
 
 <body id="game_frame" style="margin:0;width:100%;height:100%;overflow:hidden;background:black;"></body>
