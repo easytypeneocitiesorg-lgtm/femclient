@@ -46,16 +46,17 @@ window.addEventListener("load", function() {
         document.body.appendChild(wm);
     }, 1500);
 
-    // ===== SAFE Auto Clicker =====
+    // ===== Auto Clicker (UI always visible) =====
     (function(){
         let enabled = false;
         let interval = null;
         let delay = 100;
 
-        // Create UI ONCE after game loads
+        let panel, label, input;
+
+        // Create UI once
         setTimeout(() => {
-            const panel = document.createElement("div");
-            panel.id = "ac_panel";
+            panel = document.createElement("div");
             panel.style.position = "fixed";
             panel.style.top = "10px";
             panel.style.left = "10px";
@@ -63,15 +64,13 @@ window.addEventListener("load", function() {
             panel.style.fontFamily = "Arial";
             panel.style.fontSize = "16px";
             panel.style.zIndex = "9999";
-            panel.style.display = "none";
             panel.style.background = "rgba(0,0,0,0.5)";
             panel.style.padding = "6px";
             panel.style.borderRadius = "6px";
 
-            const label = document.createElement("div");
-            label.id = "ac_label";
+            label = document.createElement("div");
 
-            const input = document.createElement("input");
+            input = document.createElement("input");
             input.type = "number";
             input.value = delay;
             input.style.marginTop = "5px";
@@ -81,18 +80,20 @@ window.addEventListener("load", function() {
                 let val = parseInt(input.value);
                 if(isNaN(val)) val = 100;
 
-                // clamp to safe range
                 delay = Math.max(10, Math.min(500, val));
 
                 if(enabled){
                     stop();
                     start();
                 }
+                updateUI();
             };
 
             panel.appendChild(label);
             panel.appendChild(input);
             document.body.appendChild(panel);
+
+            updateUI();
         }, 2000);
 
         function getCanvas(){
@@ -120,17 +121,8 @@ window.addEventListener("load", function() {
         }
 
         function updateUI(){
-            const panel = document.getElementById("ac_panel");
-            const label = document.getElementById("ac_label");
-
-            if(!panel || !label) return;
-
-            if(enabled){
-                label.textContent = "AutoClicker: ON (" + delay + "ms)";
-                panel.style.display = "block";
-            } else {
-                panel.style.display = "none";
-            }
+            if(!label) return;
+            label.textContent = "AutoClicker: " + (enabled ? "ON" : "OFF") + " (" + delay + "ms)";
         }
 
         document.addEventListener("keydown", (e)=>{
