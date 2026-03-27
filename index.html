@@ -30,39 +30,30 @@ window.addEventListener("load", function() {
 
     main();
 
-    // ===== Persistent Watermark =====
-    (function(){
-        const id = "femclientWM";
-        function create(){
-            if(document.getElementById(id)) return;
-            const wm = document.createElement("div");
-            wm.id = id;
-            wm.textContent = "femclient";
-            wm.style.position = "fixed";
-            wm.style.bottom = "10px";
-            wm.style.right = "15px";
-            wm.style.color = "rgba(255,255,255,0.8)";
-            wm.style.fontSize = "24px";
-            wm.style.fontWeight = "bold";
-            wm.style.pointerEvents = "none";
-            wm.style.zIndex = "9999";
-            wm.style.textShadow = "0 0 8px white";
-            document.body.appendChild(wm);
-        }
-        create();
-        new MutationObserver(create).observe(document.body,{childList:true,subtree:true});
-    })();
+    // ===== Watermark =====
+    setTimeout(() => {
+        const wm = document.createElement("div");
+        wm.textContent = "femclient";
+        wm.style.position = "fixed";
+        wm.style.bottom = "10px";
+        wm.style.right = "15px";
+        wm.style.color = "rgba(255,255,255,0.8)";
+        wm.style.fontSize = "24px";
+        wm.style.fontWeight = "bold";
+        wm.style.pointerEvents = "none";
+        wm.style.zIndex = "9999";
+        wm.style.textShadow = "0 0 8px white";
+        document.body.appendChild(wm);
+    }, 1500);
 
-    // ===== FIXED Auto Clicker =====
+    // ===== SAFE Auto Clicker =====
     (function(){
         let enabled = false;
         let interval = null;
         let delay = 100;
 
-        // Create UI safely (after bootstrap nukes DOM)
-        function ensureUI(){
-            if(document.getElementById("ac_panel")) return;
-
+        // Create UI ONCE after game loads
+        setTimeout(() => {
             const panel = document.createElement("div");
             panel.id = "ac_panel";
             panel.style.position = "fixed";
@@ -87,7 +78,12 @@ window.addEventListener("load", function() {
             input.style.width = "60px";
 
             input.onchange = () => {
-                delay = Math.max(1, parseInt(input.value) || 100);
+                let val = parseInt(input.value);
+                if(isNaN(val)) val = 100;
+
+                // clamp to safe range
+                delay = Math.max(10, Math.min(500, val));
+
                 if(enabled){
                     stop();
                     start();
@@ -97,7 +93,7 @@ window.addEventListener("load", function() {
             panel.appendChild(label);
             panel.appendChild(input);
             document.body.appendChild(panel);
-        }
+        }, 2000);
 
         function getCanvas(){
             return document.querySelector("canvas");
@@ -112,7 +108,7 @@ window.addEventListener("load", function() {
         }
 
         function start(){
-            if(interval) return; // prevent stacking
+            if(interval) return;
             interval = setInterval(click, delay);
         }
 
@@ -124,9 +120,10 @@ window.addEventListener("load", function() {
         }
 
         function updateUI(){
-            ensureUI();
             const panel = document.getElementById("ac_panel");
             const label = document.getElementById("ac_label");
+
+            if(!panel || !label) return;
 
             if(enabled){
                 label.textContent = "AutoClicker: ON (" + delay + "ms)";
@@ -135,11 +132,6 @@ window.addEventListener("load", function() {
                 panel.style.display = "none";
             }
         }
-
-        // Keep UI alive even if DOM resets
-        new MutationObserver(() => {
-            if(enabled) updateUI();
-        }).observe(document.body, {childList:true,subtree:true});
 
         document.addEventListener("keydown", (e)=>{
             if(e.code === "AltLeft" || e.code === "AltRight"){
