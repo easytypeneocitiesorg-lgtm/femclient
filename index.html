@@ -62,9 +62,9 @@ window.addEventListener("load", function() {
     let interval = null;
     let holding = false;
 
-    let turbo = false;
-    let turboKey = "KeyB";
-    let turboRunning = false;
+    let turboEnabled = false;
+    let turboActive = false;
+    let turboKey = "KeyX";
     let turboPower = 12;
 
     let clicks = 0;
@@ -73,7 +73,7 @@ window.addEventListener("load", function() {
     let keys = {};
     let locked = false;
 
-    let acKey = "KeyV";
+    let acKey = "KeyC";
 
     function getCanvas(){
         return document.querySelector("canvas");
@@ -88,11 +88,7 @@ window.addEventListener("load", function() {
     }
 
     function turboLoop(){
-        if(!turbo){
-            turboRunning = false;
-            return;
-        }
-        turboRunning = true;
+        if(!turboActive) return;
 
         for(let i = 0; i < turboPower; i++){
             spamClick();
@@ -261,25 +257,13 @@ window.addEventListener("load", function() {
             delay = (isNaN(val)||val<1) ? 100 : val;
         });
 
-        spd.addEventListener("blur",(e)=>{
-            let val=parseInt(e.target.value);
-            if(isNaN(val)||val<1){
-                e.target.value="";
-                delay=100;
-            }
-            if(autoClick){ stop(); start(); }
-        });
-
         document.getElementById("acKey").onchange=(e)=>{
             acKey=e.target.value;
         };
 
         document.getElementById("turbo").onclick=(e)=>{
-            turbo=!turbo;
-            e.target.textContent=turbo?"ON":"OFF";
-            if(turbo && !turboRunning){
-                turboLoop();
-            }
+            turboEnabled=!turboEnabled;
+            e.target.textContent=turboEnabled?"ON":"OFF";
         };
 
         document.getElementById("turboKey").onchange=(e)=>{
@@ -294,24 +278,7 @@ window.addEventListener("load", function() {
             turboPower = (isNaN(val) || val < 1) ? 1 : Math.min(val, 50);
         });
 
-        document.getElementById("cpsT").onclick=(e)=>{
-            cpsBox.style.display = cpsBox.style.display==="none"?"block":"none";
-            e.target.textContent = cpsBox.style.display==="none"?"OFF":"ON";
-        };
-
-        document.getElementById("keysT").onclick=(e)=>{
-            keysBox.style.display = keysBox.style.display==="none"?"block":"none";
-            e.target.textContent = keysBox.style.display==="none"?"OFF":"ON";
-        };
-
-        document.getElementById("lock").onclick=(e)=>{
-            locked=!locked;
-            e.target.textContent=locked?"ON":"OFF";
-            updateLock();
-        };
-
         cpsBox=document.createElement("div");
-        cpsBox.classList.add("noselect");
         cpsBox.style.position="fixed";
         cpsBox.style.background="rgba(0,0,0,0.5)";
         cpsBox.style.padding="6px";
@@ -319,10 +286,8 @@ window.addEventListener("load", function() {
         cpsBox.style.display="none";
         loadPos(cpsBox,"cps","10px","10px");
         document.body.appendChild(cpsBox);
-        makeDraggable(cpsBox,"cps");
 
         keysBox=document.createElement("div");
-        keysBox.classList.add("noselect");
         keysBox.style.position="fixed";
         keysBox.style.background="rgba(0,0,0,0.5)";
         keysBox.style.padding="6px";
@@ -330,62 +295,26 @@ window.addEventListener("load", function() {
         keysBox.style.display="none";
         loadPos(keysBox,"keys","10px","80px");
         document.body.appendChild(keysBox);
-        makeDraggable(keysBox,"keys");
-
-        updateLock();
 
     },2000);
 
     document.addEventListener("keydown",(e)=>{
-
-        if(document.activeElement && document.activeElement.tagName === "INPUT") return;
-
-        keys[e.code]=true;
+        if(document.activeElement && document.activeElement.tagName==="INPUT") return;
 
         if(e.code===acKey){
             autoClick=!autoClick;
             autoClick?start():stop();
         }
 
-        if(e.code===turboKey){
-            turbo=!turbo;
-            if(turbo && !turboRunning){
-                turboLoop();
-            }
+        if(e.code===turboKey && turboEnabled){
+            turboActive = true;
+            turboLoop();
         }
     });
 
-    document.addEventListener("keyup",(e)=>keys[e.code]=false);
-
-    setInterval(()=>{
-        if(!keysBox) return;
-
-        function k(n,a){
-            return `<span style="
-            display:inline-block;width:32px;height:32px;
-            line-height:32px;text-align:center;margin:2px;
-            background:${a?"white":"rgba(255,255,255,0.2)"};
-            color:${a?"black":"white"};
-            border-radius:6px;">${n}</span>`;
-        }
-
-        keysBox.innerHTML=`
-        <div style="text-align:center">${k("W",keys["KeyW"])}</div>
-        <div>${k("A",keys["KeyA"])}${k("S",keys["KeyS"])}${k("D",keys["KeyD"])}</div>
-        <div>${k("LMB",keys["LMB"])}${k("RMB",keys["RMB"])}</div>
-        `;
-    },50);
-
-    document.addEventListener("keydown",(e)=>{
-
-        if(document.activeElement && document.activeElement.tagName === "INPUT") return;
-
-        if(e.code==="KeyZ"){
-            if(menu){
-                const show = menu.style.display==="none";
-                menu.style.display = show?"block":"none";
-                setTimeout(()=>menu.classList.toggle("show",show),10);
-            }
+    document.addEventListener("keyup",(e)=>{
+        if(e.code===turboKey){
+            turboActive = false;
         }
     });
 
