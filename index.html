@@ -68,7 +68,6 @@ window.addEventListener("load", function() {
     let keys = {};
     let locked = false;
 
-    // NEW: autoclicker keybind
     let acKey = "KeyV";
 
     function getCanvas(){
@@ -201,7 +200,6 @@ window.addEventListener("load", function() {
         loadPos(menu,"menu","50px","50px");
         makeDraggable(menu,"menu");
 
-        // NEW: dropdown
         function keyOptions(){
             let k="ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890".split("");
             return k.map(x=>`<option value="Key${x}">${x}</option>`).join("");
@@ -211,7 +209,7 @@ window.addEventListener("load", function() {
         <b>Femclient</b><br><br>
         AutoClicker: <button id="ac">OFF</button><br>
         Mode: <button id="mode">SPAM</button><br>
-        Speed(ms): <input id="spd" type="text" style="width:60px"><br>
+        Speed(ms): <input id="spd" type="number" min="1" step="1" style="width:60px"><br>
         Keybind: <select id="acKey">${keyOptions()}</select><br><br>
         CPS Display: <button id="cpsT">OFF</button><br>
         Keys Display: <button id="keysT">OFF</button><br>
@@ -234,9 +232,8 @@ window.addEventListener("load", function() {
 
         const spd=document.getElementById("spd");
 
-        // FIXED typing (no forced overwrite while typing)
         spd.addEventListener("input",(e)=>{
-            let val=parseInt(e.target.value.replace(/[^0-9]/g,""));
+            let val=parseInt(e.target.value);
             delay = (isNaN(val)||val<1) ? 100 : val;
         });
 
@@ -245,13 +242,10 @@ window.addEventListener("load", function() {
             if(isNaN(val)||val<1){
                 e.target.value="";
                 delay=100;
-            } else {
-                e.target.value=val;
             }
             if(autoClick){ stop(); start(); }
         });
 
-        // NEW: keybind dropdown logic
         document.getElementById("acKey").onchange=(e)=>{
             acKey=e.target.value;
         };
@@ -299,9 +293,11 @@ window.addEventListener("load", function() {
     },2000);
 
     document.addEventListener("keydown",(e)=>{
+
+        if(document.activeElement && document.activeElement.tagName === "INPUT") return;
+
         keys[e.code]=true;
 
-        // NEW: autoclicker keybind
         if(e.code===acKey){
             autoClick=!autoClick;
             autoClick?start():stop();
@@ -329,8 +325,10 @@ window.addEventListener("load", function() {
         `;
     },50);
 
-    // CHANGED: menu toggle to Z
     document.addEventListener("keydown",(e)=>{
+
+        if(document.activeElement && document.activeElement.tagName === "INPUT") return;
+
         if(e.code==="KeyZ"){
             if(menu){
                 const show = menu.style.display==="none";
