@@ -5,40 +5,24 @@
 <title>femclient MC 1.12</title>
 
 <link rel="shortcut icon" href="https://copilot.microsoft.com/th/id/BCO.09157aa1-3f24-45e7-a7ad-e815b68a510e.png" />
-
 <script src="bootstrap.js"></script>
 
 <style>
-body {
-    margin:0;
-    width:100%;
-    height:100%;
-    overflow:hidden;
-    background:black;
-}
+body { margin:0; overflow:hidden; background:black; }
 
-/* animations */
-.fade {
-    transition: all 0.2s ease;
-}
 .menu {
     backdrop-filter: blur(6px);
     border-radius: 10px;
     box-shadow: 0 0 20px rgba(0,0,0,0.5);
     transform: scale(0.95);
     opacity: 0;
+    transition: all 0.2s ease;
 }
-.menu.show {
-    transform: scale(1);
-    opacity: 1;
-}
+.menu.show { transform: scale(1); opacity: 1; }
 
-/* 🔥 prevents text highlighting */
 .noselect {
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
+    -webkit-user-select:none;
+    user-select:none;
 }
 </style>
 
@@ -46,183 +30,124 @@ body {
 "use strict";
 window.addEventListener("load", function() {
 
-    // ===== GAME INIT =====
-    var relayId = Math.floor(Math.random() * 3);
+    // ===== GAME =====
     window.eaglercraftXOpts = {
-        demoMode: false,
         container: "game_frame",
         assetsURI: "assets.epw",
         worldsDB: "worlds",
         servers: [],
         relays: [
-            { addr: "wss://relay.deev.is/", primary: relayId == 0 },
-            { addr: "wss://relay.lax1dude.net/", primary: relayId == 1 },
-            { addr: "wss://relay.shhnowisnottheti.me/", primary: relayId == 2 }
+            { addr: "wss://relay.deev.is/" },
+            { addr: "wss://relay.lax1dude.net/" },
+            { addr: "wss://relay.shhnowisnottheti.me/" }
         ]
     };
-
     main();
 
     // ===== STATE =====
     let autoClick = false;
-    let holdMode = false;
+    let perfectTiming = false;
     let delay = 100;
-    let interval = null;
-    let holding = false;
 
-    let clicks = 0;
-    let cps = 0;
+    let mode = "sword"; // sword or axe
+    let interval = null;
+
+    let keybindAC = "KeyV";
+    let keybindPT = "KeyB";
+    let waitingKeybind = null;
 
     let keys = {};
-    let locked = false;
 
     function getCanvas(){
         return document.querySelector("canvas");
     }
 
-    function spamClick(){
+    function click(){
         const c = getCanvas();
         if(!c) return;
         c.dispatchEvent(new MouseEvent("mousedown",{button:0,bubbles:true}));
         c.dispatchEvent(new MouseEvent("mouseup",{button:0,bubbles:true}));
-        clicks++;
     }
 
-    function start(){
-        if(interval) return;
+    function getDelay(){
+        if(!perfectTiming) return delay;
 
-        if(holdMode){
-            const c = getCanvas();
-            if(c){
-                c.dispatchEvent(new MouseEvent("mousedown",{button:0,bubbles:true}));
-                holding = true;
-            }
-        } else {
-            interval = setInterval(spamClick, delay);
+        if(mode === "sword") return 630;
+
+        if(mode === "axe"){
+            // approx axe cooldown (varies by axe, using ~1.2s)
+            return 1200 + 5;
         }
     }
 
-    function stop(){
+    function startClicker(){
+        if(interval) clearInterval(interval);
+
+        interval = setInterval(()=>{
+            if(autoClick) click();
+            if(perfectTiming && keys["LMB"]) click();
+        }, getDelay());
+    }
+
+    function stopClicker(){
         if(interval){
             clearInterval(interval);
             interval = null;
         }
-        if(holding){
-            const c = getCanvas();
-            if(c){
-                c.dispatchEvent(new MouseEvent("mouseup",{button:0,bubbles:true}));
-            }
-            holding = false;
-        }
-    }
-
-    // ===== CPS TRACK =====
-    document.addEventListener("mousedown",(e)=>{
-        if(e.button===0) clicks++;
-        if(e.button===0) keys["LMB"]=true;
-        if(e.button===2) keys["RMB"]=true;
-    });
-
-    document.addEventListener("mouseup",(e)=>{
-        if(e.button===0) keys["LMB"]=false;
-        if(e.button===2) keys["RMB"]=false;
-    });
-
-    setInterval(()=>{
-        cps = clicks;
-        clicks = 0;
-        if(cpsBox) cpsBox.textContent = "CPS: " + cps;
-    },1000);
-
-    // ===== DRAG SYSTEM =====
-    function makeDraggable(el, key){
-        let drag=false, ox=0, oy=0;
-
-        el.addEventListener("mousedown",(e)=>{
-            if(locked) return;
-            drag=true;
-            document.body.style.userSelect = "none";
-            ox=e.clientX-el.offsetLeft;
-            oy=e.clientY-el.offsetTop;
-        });
-
-        document.addEventListener("mousemove",(e)=>{
-            if(!drag) return;
-            el.style.left=(e.clientX-ox)+"px";
-            el.style.top=(e.clientY-oy)+"px";
-        });
-
-        document.addEventListener("mouseup",()=>{
-            document.body.style.userSelect = "auto";
-            if(drag){
-                localStorage.setItem(key+"_x", el.style.left);
-                localStorage.setItem(key+"_y", el.style.top);
-            }
-            drag=false;
-        });
-    }
-
-    function loadPos(el,key,defX,defY){
-        el.style.left = localStorage.getItem(key+"_x") || defX;
-        el.style.top = localStorage.getItem(key+"_y") || defY;
-    }
-
-    function updateLock(){
-        const val = locked ? "none" : "auto";
-        if(cpsBox) cpsBox.style.pointerEvents = val;
-        if(keysBox) keysBox.style.pointerEvents = val;
     }
 
     // ===== UI =====
-    let menu, cpsBox, keysBox;
+    let menu;
 
     setTimeout(()=>{
 
-        // hint text
+        // watermark
+        const wm = document.createElement("div");
+        wm.textContent = "femclient";
+        wm.className="noselect";
+        wm.style.position="fixed";
+        wm.style.bottom="10px";
+        wm.style.right="15px";
+        wm.style.color="white";
+        document.body.appendChild(wm);
+
         const hint = document.createElement("div");
-        hint.textContent = "press alt!";
-        hint.classList.add("noselect");
+        hint.textContent = "press Z";
+        hint.className="noselect";
         hint.style.position="fixed";
         hint.style.bottom="35px";
         hint.style.right="15px";
         hint.style.color="white";
         hint.style.opacity="0.7";
-        hint.style.zIndex="9999";
         document.body.appendChild(hint);
 
-        // watermark
-        const wm = document.createElement("div");
-        wm.textContent = "femclient";
-        wm.classList.add("noselect");
-        wm.style.position="fixed";
-        wm.style.bottom="10px";
-        wm.style.right="15px";
-        wm.style.color="white";
-        wm.style.zIndex="9999";
-        document.body.appendChild(wm);
-
-        // ===== MENU =====
+        // menu
         menu = document.createElement("div");
-        menu.className="menu fade noselect";
+        menu.className="menu noselect";
         menu.style.position="fixed";
-        menu.style.background="rgba(20,20,20,0.85)";
+        menu.style.top="50px";
+        menu.style.left="50px";
+        menu.style.background="rgba(20,20,20,0.9)";
         menu.style.color="white";
         menu.style.padding="12px";
-        menu.style.zIndex="9999";
         menu.style.display="none";
-        menu.style.fontFamily="Arial";
 
-        loadPos(menu,"menu","50px","50px");
-        makeDraggable(menu,"menu");
-
-        menu.innerHTML=`
+        menu.innerHTML = `
         <b>Femclient</b><br><br>
+
         AutoClicker: <button id="ac">OFF</button><br>
-        Mode: <button id="mode">SPAM</button><br>
-        Speed(ms): <input id="spd" type="number" value="100" style="width:60px"><br><br>
-        CPS Display: <button id="cpsT">OFF</button><br>
-        Keys Display: <button id="keysT">OFF</button><br>
-        Lock UI: <button id="lock">OFF</button>
+        Perfect Timing: <button id="pt">OFF</button><br><br>
+
+        Mode:
+        <select id="mode">
+            <option value="sword">Sword</option>
+            <option value="axe">Axe</option>
+        </select><br><br>
+
+        Speed(ms): <input id="spd" type="text" value="100" style="width:60px"><br><br>
+
+        AutoClicker Key: <button id="setAC">SET (${keybindAC})</button><br>
+        Timing Key: <button id="setPT">SET (${keybindPT})</button>
         `;
 
         document.body.appendChild(menu);
@@ -231,106 +156,83 @@ window.addEventListener("load", function() {
         document.getElementById("ac").onclick=(e)=>{
             autoClick=!autoClick;
             e.target.textContent=autoClick?"ON":"OFF";
-            autoClick?start():stop();
+            startClicker();
         };
 
-        document.getElementById("mode").onclick=(e)=>{
-            holdMode=!holdMode;
-            e.target.textContent=holdMode?"HOLD":"SPAM";
-            if(autoClick){ stop(); start(); }
+        document.getElementById("pt").onclick=(e)=>{
+            perfectTiming=!perfectTiming;
+            e.target.textContent=perfectTiming?"ON":"OFF";
+            startClicker();
+        };
+
+        document.getElementById("mode").onchange=(e)=>{
+            mode=e.target.value;
+            startClicker();
         };
 
         document.getElementById("spd").oninput=(e)=>{
-            let val = parseInt(e.target.value);
-            if(isNaN(val) || val < 1){
-                delay = 100;
-                e.target.value = 100;
-            } else {
-                delay = val;
-            }
-            if(autoClick){ stop(); start(); }
+            let val=parseInt(e.target.value.replace(/[^0-9]/g,""));
+            if(isNaN(val)||val<1){
+                delay=100;
+            } else delay=val;
+            startClicker();
         };
 
-        document.getElementById("cpsT").onclick=(e)=>{
-            cpsBox.style.display = cpsBox.style.display==="none"?"block":"none";
-            e.target.textContent = cpsBox.style.display==="none"?"OFF":"ON";
+        // keybind setup
+        document.getElementById("setAC").onclick=()=>{
+            waitingKeybind="ac";
         };
 
-        document.getElementById("keysT").onclick=(e)=>{
-            keysBox.style.display = keysBox.style.display==="none"?"block":"none";
-            e.target.textContent = keysBox.style.display==="none"?"OFF":"ON";
+        document.getElementById("setPT").onclick=()=>{
+            waitingKeybind="pt";
         };
-
-        document.getElementById("lock").onclick=(e)=>{
-            locked=!locked;
-            e.target.textContent=locked?"ON":"OFF";
-            updateLock();
-        };
-
-        // ===== CPS BOX =====
-        cpsBox=document.createElement("div");
-        cpsBox.classList.add("noselect");
-        cpsBox.style.position="fixed";
-        cpsBox.style.background="rgba(0,0,0,0.5)";
-        cpsBox.style.padding="6px";
-        cpsBox.style.borderRadius="6px";
-        cpsBox.style.color="white";
-        cpsBox.style.display="none";
-        cpsBox.style.zIndex="9999";
-        loadPos(cpsBox,"cps","10px","10px");
-        document.body.appendChild(cpsBox);
-        makeDraggable(cpsBox,"cps");
-
-        // ===== KEYS BOX =====
-        keysBox=document.createElement("div");
-        keysBox.classList.add("noselect");
-        keysBox.style.position="fixed";
-        keysBox.style.background="rgba(0,0,0,0.5)";
-        keysBox.style.padding="6px";
-        keysBox.style.borderRadius="6px";
-        keysBox.style.color="white";
-        keysBox.style.display="none";
-        keysBox.style.zIndex="9999";
-        loadPos(keysBox,"keys","10px","80px");
-        document.body.appendChild(keysBox);
-        makeDraggable(keysBox,"keys");
-
-        updateLock();
 
     },2000);
 
-    // ===== KEY DISPLAY =====
-    document.addEventListener("keydown",(e)=>keys[e.code]=true);
-    document.addEventListener("keyup",(e)=>keys[e.code]=false);
+    // ===== INPUT =====
+    document.addEventListener("keydown",(e)=>{
+        keys[e.code]=true;
 
-    setInterval(()=>{
-        if(!keysBox) return;
+        // set keybind
+        if(waitingKeybind){
+            if(waitingKeybind==="ac") keybindAC=e.code;
+            if(waitingKeybind==="pt") keybindPT=e.code;
 
-        function k(n,a){
-            return `<span style="
-            display:inline-block;width:32px;height:32px;
-            line-height:32px;text-align:center;margin:2px;
-            background:${a?"white":"rgba(255,255,255,0.2)"};
-            color:${a?"black":"white"};
-            border-radius:6px;">${n}</span>`;
+            waitingKeybind=null;
+            location.reload();
         }
 
-        keysBox.innerHTML=`
-        <div style="text-align:center">${k("W",keys["KeyW"])}</div>
-        <div>${k("A",keys["KeyA"])}${k("S",keys["KeyS"])}${k("D",keys["KeyD"])}</div>
-        <div>${k("LMB",keys["LMB"])}${k("RMB",keys["RMB"])}</div>
-        `;
-    },50);
-
-    // ===== MENU TOGGLE =====
-    document.addEventListener("keydown",(e)=>{
-        if(e.code==="AltLeft"||e.code==="AltRight"){
+        // menu toggle (Z)
+        if(e.code==="KeyZ"){
             if(menu){
                 const show = menu.style.display==="none";
-                menu.style.display = show ? "block" : "none";
-                setTimeout(()=> menu.classList.toggle("show", show), 10);
+                menu.style.display = show?"block":"none";
+                setTimeout(()=>menu.classList.toggle("show",show),10);
             }
         }
+
+        // keybind toggles
+        if(e.code===keybindAC){
+            autoClick=!autoClick;
+            startClicker();
+        }
+
+        if(e.code===keybindPT){
+            perfectTiming=!perfectTiming;
+            startClicker();
+        }
+    });
+
+    document.addEventListener("keyup",(e)=>{
+        keys[e.code]=false;
+    });
+
+    document.addEventListener("mousedown",(e)=>{
+        if(e.button===0) keys["LMB"]=true;
+    });
+
+    document.addEventListener("mouseup",(e)=>{
+        if(e.button===0) keys["LMB"]=false;
     });
 
 });
