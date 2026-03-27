@@ -12,7 +12,6 @@
 "use strict";
 window.addEventListener("load", function() {
 
-    // ===== GAME INIT =====
     var relayId = Math.floor(Math.random() * 3);
     window.eaglercraftXOpts = {
         demoMode: false,
@@ -29,157 +28,184 @@ window.addEventListener("load", function() {
 
     main();
 
-    // ===== GLOBAL STATE =====
+    // ===== STATE =====
     let autoClick = false;
-    let clickDelay = 100;
-    let cpsEnabled = true;
-    let keysEnabled = true;
-    let locked = true;
+    let holdMode = false;
+    let delay = 100;
+    let interval = null;
 
-    let clickInterval = null;
     let clicks = 0;
     let cps = 0;
 
-    // ===== UTIL =====
+    let keys = {};
+
     function getCanvas(){
         return document.querySelector("canvas");
     }
 
-    function simulateClick(){
+    // ===== CLICK LOGIC =====
+    function spamClick(){
         const c = getCanvas();
         if(!c) return;
+
         c.dispatchEvent(new MouseEvent("mousedown",{button:0,bubbles:true}));
         c.dispatchEvent(new MouseEvent("mouseup",{button:0,bubbles:true}));
         clicks++;
     }
 
-    function startClicker(){
-        if(clickInterval) return;
-        clickInterval = setInterval(simulateClick, clickDelay);
+    function holdClick(){
+        const c = getCanvas();
+        if(!c) return;
+        c.dispatchEvent(new MouseEvent("mousedown",{button:0,bubbles:true}));
     }
 
-    function stopClicker(){
-        if(clickInterval){
-            clearInterval(clickInterval);
-            clickInterval = null;
+    function releaseClick(){
+        const c = getCanvas();
+        if(!c) return;
+        c.dispatchEvent(new MouseEvent("mouseup",{button:0,bubbles:true}));
+    }
+
+    function start(){
+        if(interval) return;
+
+        if(holdMode){
+            holdClick();
+        } else {
+            interval = setInterval(spamClick, delay);
         }
     }
 
-    // ===== CPS TRACK =====
+    function stop(){
+        if(interval){
+            clearInterval(interval);
+            interval = null;
+        }
+        if(holdMode){
+            releaseClick();
+        }
+    }
+
+    // ===== CPS TRACK (ALL clicks) =====
+    document.addEventListener("mousedown",(e)=>{
+        if(e.button === 0) clicks++;
+        keys["LMB"] = true;
+        if(e.button === 2) keys["RMB"] = true;
+    });
+
+    document.addEventListener("mouseup",(e)=>{
+        if(e.button === 0) keys["LMB"] = false;
+        if(e.button === 2) keys["RMB"] = false;
+    });
+
     setInterval(()=>{
         cps = clicks;
         clicks = 0;
         if(cpsBox) cpsBox.textContent = "CPS: " + cps;
     },1000);
 
-    // ===== DRAG SYSTEM =====
+    // ===== DRAG =====
     function makeDraggable(el){
-        let dragging = false, offX=0, offY=0;
-
+        let drag=false, ox=0, oy=0;
         el.addEventListener("mousedown",(e)=>{
             if(locked) return;
-            dragging = true;
-            offX = e.clientX - el.offsetLeft;
-            offY = e.clientY - el.offsetTop;
+            drag=true;
+            ox=e.clientX-el.offsetLeft;
+            oy=e.clientY-el.offsetTop;
         });
-
         document.addEventListener("mousemove",(e)=>{
-            if(!dragging) return;
-            el.style.left = (e.clientX - offX) + "px";
-            el.style.top = (e.clientY - offY) + "px";
+            if(!drag) return;
+            el.style.left=(e.clientX-ox)+"px";
+            el.style.top=(e.clientY-oy)+"px";
         });
-
-        document.addEventListener("mouseup",()=> dragging=false);
+        document.addEventListener("mouseup",()=>drag=false);
     }
 
     function updateLock(){
         const val = locked ? "none" : "auto";
-        if(cpsBox) cpsBox.style.pointerEvents = val;
-        if(keysBox) keysBox.style.pointerEvents = val;
+        cpsBox.style.pointerEvents = val;
+        keysBox.style.pointerEvents = val;
     }
 
-    // ===== UI CREATE =====
+    // ===== UI =====
     let menu, cpsBox, keysBox;
+    let locked = true;
 
     setTimeout(()=>{
 
-        // ===== MENU =====
+        // MENU
         menu = document.createElement("div");
-        menu.style.position = "fixed";
-        menu.style.top = "50px";
-        menu.style.left = "50px";
-        menu.style.background = "rgba(0,0,0,0.8)";
-        menu.style.color = "white";
-        menu.style.padding = "10px";
-        menu.style.zIndex = "9999";
-        menu.style.display = "none";
-        menu.style.fontFamily = "Arial";
+        menu.style.position="fixed";
+        menu.style.top="50px";
+        menu.style.left="50px";
+        menu.style.background="rgba(0,0,0,0.8)";
+        menu.style.color="white";
+        menu.style.padding="10px";
+        menu.style.zIndex="9999";
+        menu.style.display="none";
 
-        menu.innerHTML = `
-            <b>Femclient</b><br><br>
-
-            AutoClicker: <button id="ac_toggle">OFF</button><br>
-            Speed(ms): <input id="ac_speed" type="number" value="100" style="width:60px"><br><br>
-
-            CPS Display: <button id="cps_toggle">ON</button><br>
-            Key Display: <button id="keys_toggle">ON</button><br><br>
-
-            Lock UI: <button id="lock_toggle">ON</button>
+        menu.innerHTML=`
+        <b>Femclient</b><br><br>
+        AutoClicker: <button id="ac">OFF</button><br>
+        Mode: <button id="mode">SPAM</button><br>
+        Speed(ms): <input id="spd" type="number" value="100" style="width:60px"><br><br>
+        Lock UI: <button id="lock">ON</button>
         `;
 
         document.body.appendChild(menu);
 
-        // ===== BUTTON HOOKS =====
-        document.getElementById("ac_toggle").onclick = (e)=>{
-            autoClick = !autoClick;
-            e.target.textContent = autoClick ? "ON" : "OFF";
-            autoClick ? startClicker() : stopClicker();
+        document.getElementById("ac").onclick=(e)=>{
+            autoClick=!autoClick;
+            e.target.textContent=autoClick?"ON":"OFF";
+            autoClick?start():stop();
         };
 
-        document.getElementById("ac_speed").onchange = (e)=>{
-            clickDelay = Math.max(10, Math.min(500, parseInt(e.target.value)||100));
+        document.getElementById("mode").onclick=(e)=>{
+            holdMode=!holdMode;
+            e.target.textContent=holdMode?"HOLD":"SPAM";
             if(autoClick){
-                stopClicker();
-                startClicker();
+                stop();
+                start();
             }
         };
 
-        document.getElementById("cps_toggle").onclick = (e)=>{
-            cpsEnabled = !cpsEnabled;
-            e.target.textContent = cpsEnabled ? "ON" : "OFF";
-            cpsBox.style.display = cpsEnabled ? "block" : "none";
+        document.getElementById("spd").onchange=(e)=>{
+            delay=Math.max(1,parseInt(e.target.value)||100);
+            if(autoClick){
+                stop();
+                start();
+            }
         };
 
-        document.getElementById("keys_toggle").onclick = (e)=>{
-            keysEnabled = !keysEnabled;
-            e.target.textContent = keysEnabled ? "ON" : "OFF";
-            keysBox.style.display = keysEnabled ? "block" : "none";
-        };
-
-        document.getElementById("lock_toggle").onclick = (e)=>{
-            locked = !locked;
-            e.target.textContent = locked ? "ON" : "OFF";
+        document.getElementById("lock").onclick=(e)=>{
+            locked=!locked;
+            e.target.textContent=locked?"ON":"OFF";
             updateLock();
         };
 
-        // ===== CPS BOX =====
-        cpsBox = document.createElement("div");
-        cpsBox.style.position = "fixed";
-        cpsBox.style.top = "10px";
-        cpsBox.style.left = "10px";
-        cpsBox.style.color = "white";
-        cpsBox.textContent = "CPS: 0";
-        cpsBox.style.zIndex = "9999";
+        // CPS BOX
+        cpsBox=document.createElement("div");
+        cpsBox.style.position="fixed";
+        cpsBox.style.top="10px";
+        cpsBox.style.left="10px";
+        cpsBox.style.color="white";
+        cpsBox.style.background="rgba(0,0,0,0.5)";
+        cpsBox.style.padding="6px";
+        cpsBox.style.borderRadius="6px";
+        cpsBox.textContent="CPS: 0";
+        cpsBox.style.zIndex="9999";
         document.body.appendChild(cpsBox);
         makeDraggable(cpsBox);
 
-        // ===== KEYS BOX =====
-        keysBox = document.createElement("div");
-        keysBox.style.position = "fixed";
-        keysBox.style.top = "80px";
-        keysBox.style.left = "10px";
-        keysBox.style.color = "white";
-        keysBox.style.zIndex = "9999";
+        // KEYS BOX
+        keysBox=document.createElement("div");
+        keysBox.style.position="fixed";
+        keysBox.style.top="80px";
+        keysBox.style.left="10px";
+        keysBox.style.color="white";
+        keysBox.style.background="rgba(0,0,0,0.5)";
+        keysBox.style.padding="6px";
+        keysBox.style.borderRadius="6px";
+        keysBox.style.zIndex="9999";
         document.body.appendChild(keysBox);
         makeDraggable(keysBox);
 
@@ -187,28 +213,47 @@ window.addEventListener("load", function() {
 
     },2000);
 
-    // ===== KEY TRACK =====
-    let keys = {};
-    document.addEventListener("keydown",e=> keys[e.code]=true);
-    document.addEventListener("keyup",e=> keys[e.code]=false);
+    // ===== KEY DISPLAY =====
+    document.addEventListener("keydown",(e)=>keys[e.code]=true);
+    document.addEventListener("keyup",(e)=>keys[e.code]=false);
 
     setInterval(()=>{
-        if(keysBox && keysEnabled){
-            keysBox.innerHTML = `
-                ${keys["KeyW"]?"W ":""}<br>
-                ${keys["KeyA"]?"A ":""}${keys["KeyS"]?"S ":""}${keys["KeyD"]?"D ":""}<br>
-                ${keys["Mouse0"]?"LMB":""}
-            `;
+        if(!keysBox) return;
+
+        function keyBox(name, active){
+            return `<span style="
+                display:inline-block;
+                width:30px;
+                height:30px;
+                line-height:30px;
+                margin:2px;
+                text-align:center;
+                background:${active?"white":"rgba(255,255,255,0.2)"};
+                color:${active?"black":"white"};
+                border-radius:4px;
+            ">${name}</span>`;
         }
-    },100);
 
-    document.addEventListener("mousedown",()=>keys["Mouse0"]=true);
-    document.addEventListener("mouseup",()=>keys["Mouse0"]=false);
+        keysBox.innerHTML = `
+            <div style="text-align:center">
+                ${keyBox("W",keys["KeyW"])}
+            </div>
+            <div>
+                ${keyBox("A",keys["KeyA"])}
+                ${keyBox("S",keys["KeyS"])}
+                ${keyBox("D",keys["KeyD"])}
+            </div>
+            <div>
+                ${keyBox("LMB",keys["LMB"])}
+                ${keyBox("RMB",keys["RMB"])}
+            </div>
+        `;
+    },50);
 
-    // ===== MENU TOGGLE =====
+    // MENU TOGGLE
     document.addEventListener("keydown",(e)=>{
-        if(e.code === "AltLeft" || e.code === "AltRight"){
-            if(menu) menu.style.display = menu.style.display === "none" ? "block" : "none";
+        if(e.code==="AltLeft"||e.code==="AltRight"){
+            if(menu) menu.style.display = menu.style.display==="none"?"block":"none";
         }
     });
 
