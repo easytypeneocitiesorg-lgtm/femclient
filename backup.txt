@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html style="width:100%;height:100%;background-color:black;">
+<head>
+<meta charset="UTF-8" />
+<title>femclient MC 1.12</title>
+
+<link rel="shortcut icon" href="https://copilot.microsoft.com/th/id/BCO.09157aa1-3f24-45e7-a7ad-e815b68a510e.png" />
+
+<script src="bootstrap.js"></script>
+
+<style>
+body {
+    margin:0;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:black;
+}
+
+.fade { transition: all 0.2s ease; }
+.menu {
+    backdrop-filter: blur(6px);
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    transform: scale(0.95);
+    opacity: 0;
+}
+.menu.show {
+    transform: scale(1);
+    opacity: 1;
+}
+
+.noselect {
+    -webkit-user-select:none;
+    user-select:none;
+}
+</style>
+
+<script>
+"use strict";
+window.addEventListener("load", function() {
+
+    var relayId = Math.floor(Math.random() * 3);
+    window.eaglercraftXOpts = {
+        demoMode: false,
+        container: "game_frame",
+        assetsURI: "assets.epw",
+        worldsDB: "worlds",
+        servers: [],
+        relays: [
+            { addr: "wss://relay.deev.is/", primary: relayId == 0 },
+            { addr: "wss://relay.lax1dude.net/", primary: relayId == 1 },
+            { addr: "wss://relay.shhnowisnottheti.me/", primary: relayId == 2 }
+        ]
+    };
+
+    main();
+
+    let autoClick = false;
+    let holdMode = false;
+    let delay = 100;
+    let interval = null;
+    let holding = false;
+
+    let clicks = 0;
+    let cps = 0;
+
+    let keys = {};
+    let locked = false;
+
+    let acKey = "KeyV";
+
+    function getCanvas(){
+        return document.querySelector("canvas");
+    }
+
+    function spamClick(){
+        const c = getCanvas();
+        if(!c) return;
+        c.dispatchEvent(new MouseEvent("mousedown",{button:0,bubbles:true}));
+        c.dispatchEvent(new MouseEvent("mouseup",{button:0,bubbles:true}));
+        clicks++;
+    }
+
+    function start(){
+        if(holdMode){
+            if(!holding){
+                const c = getCanvas();
+                if(c){
+                    c.dispatchEvent(new MouseEvent("mousedown",{button:0,bubbles:true}));
+                    holding = true;
+                }
+            }
+        } else {
+            if(interval) return;
+            interval = setInterval(spamClick, delay);
+        }
+    }
+
+    function stop(){
+        if(interval){
+            clearInterval(interval);
+            interval = null;
+        }
+        if(holding){
+            const c = getCanvas();
+            if(c){
+                c.dispatchEvent(new MouseEvent("mouseup",{button:0,bubbles:true}));
+            }
+            holding = false;
+        }
+    }
+
+    document.addEventListener("mousedown",(e)=>{
+        if(e.button===0) clicks++;
+        if(e.button===0) keys["LMB"]=true;
+        if(e.button===2) keys["RMB"]=true;
+    });
+
+    document.addEventListener("mouseup",(e)=>{
+        if(e.button===0) keys["LMB"]=false;
+        if(e.button===2) keys["RMB"]=false;
+    });
+
+    setInterval(()=>{
+        cps = clicks;
+        clicks = 0;
+        if(cpsBox) cpsBox.textContent = "CPS: " + cps;
+    },1000);
+
+    function makeDraggable(el, key){
+        let drag=false, ox=0, oy=0;
+
+        el.addEventListener("mousedown",(e)=>{
+            if(locked) return;
+            drag=true;
+            document.body.style.userSelect="none";
+            ox=e.clientX-el.offsetLeft;
+            oy=e.clientY-el.offsetTop;
+        });
+
+        document.addEventListener("mousemove",(e)=>{
+            if(!drag) return;
+            el.style.left=(e.clientX-ox)+"px";
+            el.style.top=(e.clientY-oy)+"px";
+        });
+
+        document.addEventListener("mouseup",()=>{
+            document.body.style.userSelect="auto";
+            if(drag){
+                localStorage.setItem(key+"_x", el.style.left);
+                localStorage.setItem(key+"_y", el.style.top);
+            }
+            drag=false;
+        });
+    }
+
+    function loadPos(el,key,x,y){
+        el.style.left = localStorage.getItem(key+"_x") || x;
+        el.style.top = localStorage.getItem(key+"_y") || y;
+    }
+
+    function updateLock(){
+        const val = locked ? "none" : "auto";
+        cpsBox.style.pointerEvents = val;
+        keysBox.style.pointerEvents = val;
+    }
+
+    let menu, cpsBox, keysBox;
+
+    setTimeout(()=>{
+
+        const hint=document.createElement("div");
+        hint.textContent="press Z!";
+        hint.classList.add("noselect");
+        hint.style.position="fixed";
+        hint.style.bottom="35px";
+        hint.style.right="15px";
+        hint.style.color="white";
+        hint.style.opacity="0.7";
+        document.body.appendChild(hint);
+
+        const wm=document.createElement("div");
+        wm.textContent="femclient";
+        wm.classList.add("noselect");
+        wm.style.position="fixed";
+        wm.style.bottom="10px";
+        wm.style.right="15px";
+        wm.style.color="white";
+        document.body.appendChild(wm);
+
+        menu=document.createElement("div");
+        menu.className="menu fade noselect";
+        menu.style.position="fixed";
+        menu.style.background="rgba(20,20,20,0.85)";
+        menu.style.color="white";
+        menu.style.padding="12px";
+        menu.style.display="none";
+
+        loadPos(menu,"menu","50px","50px");
+        makeDraggable(menu,"menu");
+
+        function keyOptions(){
+            let k="ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890".split("");
+            return k.map(x=>`<option value="Key${x}">${x}</option>`).join("");
+        }
+
+        menu.innerHTML=`
+        <b>Femclient</b><br><br>
+        AutoClicker: <button id="ac">OFF</button><br>
+        Mode: <button id="mode">SPAM</button><br>
+        Speed(ms): <input id="spd" type="number" min="1" step="1" style="width:60px"><br>
+        Keybind: <select id="acKey">${keyOptions()}</select><br><br>
+        CPS Display: <button id="cpsT">OFF</button><br>
+        Keys Display: <button id="keysT">OFF</button><br>
+        Lock UI: <button id="lock">OFF</button>
+        `;
+
+        document.body.appendChild(menu);
+
+        document.getElementById("ac").onclick=(e)=>{
+            autoClick=!autoClick;
+            e.target.textContent=autoClick?"ON":"OFF";
+            autoClick?start():stop();
+        };
+
+        document.getElementById("mode").onclick=(e)=>{
+            holdMode=!holdMode;
+            e.target.textContent=holdMode?"HOLD":"SPAM";
+            if(autoClick){ stop(); start(); }
+        };
+
+        const spd=document.getElementById("spd");
+
+        spd.addEventListener("input",(e)=>{
+            let val=parseInt(e.target.value);
+            delay = (isNaN(val)||val<1) ? 100 : val;
+        });
+
+        spd.addEventListener("blur",(e)=>{
+            let val=parseInt(e.target.value);
+            if(isNaN(val)||val<1){
+                e.target.value="";
+                delay=100;
+            }
+            if(autoClick){ stop(); start(); }
+        });
+
+        document.getElementById("acKey").onchange=(e)=>{
+            acKey=e.target.value;
+        };
+
+        document.getElementById("cpsT").onclick=(e)=>{
+            cpsBox.style.display = cpsBox.style.display==="none"?"block":"none";
+            e.target.textContent = cpsBox.style.display==="none"?"OFF":"ON";
+        };
+
+        document.getElementById("keysT").onclick=(e)=>{
+            keysBox.style.display = keysBox.style.display==="none"?"block":"none";
+            e.target.textContent = keysBox.style.display==="none"?"OFF":"ON";
+        };
+
+        document.getElementById("lock").onclick=(e)=>{
+            locked=!locked;
+            e.target.textContent=locked?"ON":"OFF";
+            updateLock();
+        };
+
+        cpsBox=document.createElement("div");
+        cpsBox.classList.add("noselect");
+        cpsBox.style.position="fixed";
+        cpsBox.style.background="rgba(0,0,0,0.5)";
+        cpsBox.style.padding="6px";
+        cpsBox.style.borderRadius="6px";
+        cpsBox.style.display="none";
+        loadPos(cpsBox,"cps","10px","10px");
+        document.body.appendChild(cpsBox);
+        makeDraggable(cpsBox,"cps");
+
+        keysBox=document.createElement("div");
+        keysBox.classList.add("noselect");
+        keysBox.style.position="fixed";
+        keysBox.style.background="rgba(0,0,0,0.5)";
+        keysBox.style.padding="6px";
+        keysBox.style.borderRadius="6px";
+        keysBox.style.display="none";
+        loadPos(keysBox,"keys","10px","80px");
+        document.body.appendChild(keysBox);
+        makeDraggable(keysBox,"keys");
+
+        updateLock();
+
+    },2000);
+
+    document.addEventListener("keydown",(e)=>{
+
+        if(document.activeElement && document.activeElement.tagName === "INPUT") return;
+
+        keys[e.code]=true;
+
+        if(e.code===acKey){
+            autoClick=!autoClick;
+            autoClick?start():stop();
+        }
+    });
+
+    document.addEventListener("keyup",(e)=>keys[e.code]=false);
+
+    setInterval(()=>{
+        if(!keysBox) return;
+
+        function k(n,a){
+            return `<span style="
+            display:inline-block;width:32px;height:32px;
+            line-height:32px;text-align:center;margin:2px;
+            background:${a?"white":"rgba(255,255,255,0.2)"};
+            color:${a?"black":"white"};
+            border-radius:6px;">${n}</span>`;
+        }
+
+        keysBox.innerHTML=`
+        <div style="text-align:center">${k("W",keys["KeyW"])}</div>
+        <div>${k("A",keys["KeyA"])}${k("S",keys["KeyS"])}${k("D",keys["KeyD"])}</div>
+        <div>${k("LMB",keys["LMB"])}${k("RMB",keys["RMB"])}</div>
+        `;
+    },50);
+
+    document.addEventListener("keydown",(e)=>{
+
+        if(document.activeElement && document.activeElement.tagName === "INPUT") return;
+
+        if(e.code==="KeyZ"){
+            if(menu){
+                const show = menu.style.display==="none";
+                menu.style.display = show?"block":"none";
+                setTimeout(()=>menu.classList.toggle("show",show),10);
+            }
+        }
+    });
+
+});
+</script>
+</head>
+
+<body id="game_frame"></body>
+</html>
