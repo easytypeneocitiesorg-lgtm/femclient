@@ -65,6 +65,7 @@ window.addEventListener("load", function() {
     let turbo = false;
     let turboKey = "KeyB";
     let turboRunning = false;
+    let turboPower = 12;
 
     let clicks = 0;
     let cps = 0;
@@ -93,7 +94,7 @@ window.addEventListener("load", function() {
         }
         turboRunning = true;
 
-        for(let i = 0; i < 3; i++){
+        for(let i = 0; i < turboPower; i++){
             spamClick();
         }
 
@@ -231,6 +232,7 @@ window.addEventListener("load", function() {
         Keybind: <select id="acKey">${keyOptions()}</select><br><br>
 
         Turbo Click: <button id="turbo">OFF</button><br>
+        Power: <input id="turboPower" type="number" min="1" max="50" step="1" style="width:60px"><br>
         Keybind: <select id="turboKey">${keyOptions()}</select><br><br>
 
         CPS Display: <button id="cpsT">OFF</button><br>
@@ -283,6 +285,14 @@ window.addEventListener("load", function() {
         document.getElementById("turboKey").onchange=(e)=>{
             turboKey=e.target.value;
         };
+
+        const turboPowerInput = document.getElementById("turboPower");
+        turboPowerInput.value = turboPower;
+
+        turboPowerInput.addEventListener("input",(e)=>{
+            let val = parseInt(e.target.value);
+            turboPower = (isNaN(val) || val < 1) ? 1 : Math.min(val, 50);
+        });
 
         document.getElementById("cpsT").onclick=(e)=>{
             cpsBox.style.display = cpsBox.style.display==="none"?"block":"none";
