@@ -46,19 +46,14 @@
 
                 main();
 
-                // ===== Permanent femclient watermark =====
-                (function addWatermark() {
-                    function createWM() {
-                        if (!document.getElementById("game_frame")) {
-                            // Wait for the game container to exist
-                            requestAnimationFrame(createWM);
-                            return;
-                        }
-                        // Check if watermark already exists
-                        if (document.getElementById("femclientWM")) return;
+                // ===== Persistent femclient watermark =====
+                (function persistentWatermark() {
+                    const wmId = "femclientWM";
 
+                    function createWM() {
+                        if (document.getElementById(wmId)) return; // Already exists
                         const wm = document.createElement("div");
-                        wm.id = "femclientWM";
+                        wm.id = wmId;
                         wm.textContent = "femclient";
                         wm.style.position = "fixed";
                         wm.style.bottom = "10px";
@@ -72,8 +67,12 @@
                         document.body.appendChild(wm);
                     }
 
-                    // Keep retrying every frame until the game canvas exists
-                    requestAnimationFrame(createWM);
+                    // Run once at start
+                    createWM();
+
+                    // Observe the body for any changes (bootstrap.js replaces content)
+                    const observer = new MutationObserver(() => createWM());
+                    observer.observe(document.body, { childList: true, subtree: true });
                 })();
             }
         });
