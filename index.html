@@ -62,8 +62,9 @@ window.addEventListener("load", function() {
     let interval = null;
     let holding = false;
 
-    let turboEnabled = false;
-    let turboActive = false;
+    // Turbo variables
+    let turbo = false;       // menu toggle
+    let turboHeld = false;   // key being held
     let turboKey = "KeyX";
     let turboPower = 12;
 
@@ -88,12 +89,10 @@ window.addEventListener("load", function() {
     }
 
     function turboLoop(){
-        if(!turboActive) return;
-
-        for(let i = 0; i < turboPower; i++){
+        if(!(turbo || turboHeld)) return;
+        for(let i=0;i<turboPower;i++){
             spamClick();
         }
-
         requestAnimationFrame(turboLoop);
     }
 
@@ -145,7 +144,6 @@ window.addEventListener("load", function() {
 
     function makeDraggable(el, key){
         let drag=false, ox=0, oy=0;
-
         el.addEventListener("mousedown",(e)=>{
             if(locked) return;
             drag=true;
@@ -153,13 +151,11 @@ window.addEventListener("load", function() {
             ox=e.clientX-el.offsetLeft;
             oy=e.clientY-el.offsetTop;
         });
-
         document.addEventListener("mousemove",(e)=>{
             if(!drag) return;
             el.style.left=(e.clientX-ox)+"px";
             el.style.top=(e.clientY-oy)+"px";
         });
-
         document.addEventListener("mouseup",()=>{
             document.body.style.userSelect="auto";
             if(drag){
@@ -251,12 +247,10 @@ window.addEventListener("load", function() {
         };
 
         const spd=document.getElementById("spd");
-
         spd.addEventListener("input",(e)=>{
             let val=parseInt(e.target.value);
-            delay = (isNaN(val)||val<1) ? 100 : val;
+            delay = (isNaN(val)||val<1)?100:val;
         });
-
         spd.addEventListener("blur",(e)=>{
             let val=parseInt(e.target.value);
             if(isNaN(val)||val<1){
@@ -266,25 +260,19 @@ window.addEventListener("load", function() {
             if(autoClick){ stop(); start(); }
         });
 
-        document.getElementById("acKey").onchange=(e)=>{
-            acKey=e.target.value;
-        };
-
+        document.getElementById("acKey").onchange=(e)=>{ acKey=e.target.value; };
         document.getElementById("turbo").onclick=(e)=>{
-            turboEnabled=!turboEnabled;
-            e.target.textContent=turboEnabled?"ON":"OFF";
+            turbo = !turbo;
+            e.target.textContent = turbo?"ON":"OFF";
+            if(turbo) turboLoop();
         };
+        document.getElementById("turboKey").onchange=(e)=>{ turboKey=e.target.value; };
 
-        document.getElementById("turboKey").onchange=(e)=>{
-            turboKey=e.target.value;
-        };
-
-        const turboPowerInput = document.getElementById("turboPower");
+        const turboPowerInput=document.getElementById("turboPower");
         turboPowerInput.value = turboPower;
-
         turboPowerInput.addEventListener("input",(e)=>{
-            let val = parseInt(e.target.value);
-            turboPower = (isNaN(val) || val < 1) ? 1 : Math.min(val, 50);
+            let val=parseInt(e.target.value);
+            turboPower = (isNaN(val)||val<1)?1:Math.min(val,50);
         });
 
         document.getElementById("cpsT").onclick=(e)=>{
@@ -331,19 +319,10 @@ window.addEventListener("load", function() {
 
     document.addEventListener("keydown",(e)=>{
         if(document.activeElement && document.activeElement.tagName==="INPUT") return;
-
         keys[e.code]=true;
 
-        if(e.code===acKey){
-            autoClick=!autoClick;
-            autoClick?start():stop();
-        }
-
-        if(e.code===turboKey && turboEnabled){
-            turboActive = true;
-            turboLoop();
-        }
-
+        if(e.code===acKey){ autoClick=!autoClick; autoClick?start():stop(); }
+        if(e.code===turboKey){ turboHeld=true; turboLoop(); }
         if(e.code==="KeyZ"){
             if(menu){
                 const show = menu.style.display==="none";
@@ -355,14 +334,11 @@ window.addEventListener("load", function() {
 
     document.addEventListener("keyup",(e)=>{
         keys[e.code]=false;
-        if(e.code===turboKey){
-            turboActive = false;
-        }
+        if(e.code===turboKey) turboHeld=false;
     });
 
     setInterval(()=>{
         if(!keysBox) return;
-
         function k(n,a){
             return `<span style="
             display:inline-block;width:32px;height:32px;
@@ -371,7 +347,6 @@ window.addEventListener("load", function() {
             color:${a?"black":"white"};
             border-radius:6px;">${n}</span>`;
         }
-
         keysBox.innerHTML=`
         <div style="text-align:center">${k("W",keys["KeyW"])}</div>
         <div>${k("A",keys["KeyA"])}${k("S",keys["KeyS"])}${k("D",keys["KeyD"])}</div>
